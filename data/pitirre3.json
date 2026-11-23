@@ -4,33 +4,153 @@
   "note": "status is 'documented' when the value comes from a team document and 'assumed' when it is an example value chosen for the game. Derived values say what they were derived from.",
   "sources": {
     "PVDR": "SERRT FSGP 2027 Mechanical Preliminary Vehicle Design Report, 11 November 2026",
-    "deck": "SERRT Companies Presentation, page 8",
-    "model": "Example value chosen for this game. Not team data."
+    "model": "Example value chosen for this game. Not team data.",
+    "electricalPVDR": "SERRT FSGP 2027 Electrical Preliminary Vehicle Design Report, 11 November 2026"
   },
   "values": {
-    "length": { "value": 5.03, "unit": "m", "source": "PVDR (198 in)", "status": "documented" },
-    "width": { "value": 2.12, "unit": "m", "source": "PVDR (83.29 in)", "status": "documented" },
-    "height": { "value": 1.40, "unit": "m", "source": "PVDR (55.32 in, top of canopy)", "status": "documented" },
-    "wheelbase": { "value": 3.25, "unit": "m", "source": "PVDR (128 in)", "status": "documented" },
-    "tyreRadius": { "value": 0.271, "unit": "m", "source": "PVDR (10.68 in)", "status": "documented" },
-    "cockpitFromNose": { "value": 2.87, "unit": "m", "source": "PVDR (113 in)", "status": "documented" },
-    "frontAxleStaticWeight": { "value": 53.9, "unit": "%", "source": "PVDR", "status": "documented" },
-    "designWeightWithDriver": { "value": 1000, "unit": "lb", "source": "PVDR. The report calls this a deliberate overestimate used for load cases.", "status": "documented" },
-    "carMassWithoutDriver": { "value": 373.6, "unit": "kg", "source": "Derived: 1000 lb (453.6 kg) minus the model's 80 kg driver", "status": "documented" },
-    "motor": { "value": "three-phase motor on the left-rear wheel", "unit": null, "source": "PVDR", "status": "documented" },
-    "cells": { "value": "288 Samsung 50S 21700, 32s9p", "unit": null, "source": "deck", "status": "documented" },
-    "nominalVoltage": { "value": 115.2, "unit": "V", "source": "deck", "status": "documented" },
-    "maximumVoltage": { "value": 134.4, "unit": "V", "source": "deck", "status": "documented" },
-    "capacity": { "value": 45, "unit": "Ah", "source": "deck", "status": "documented" },
-    "batteryEnergy": { "value": 5.184, "unit": "kWh", "source": "Derived: 115.2 V x 45 Ah. Nominal, not measured usable energy. The slide prints '5.18 kW', read here as a unit typo.", "status": "documented" },
-    "dragArea": { "value": 0.14, "unit": "m^2", "source": "model", "status": "assumed" },
-    "solarArea": { "value": 6, "unit": "m^2", "source": "model (set at the 2026 rule limit)", "status": "assumed" },
-    "cellEfficiency": { "value": 24, "unit": "%", "source": "model", "status": "assumed" },
-    "arrayDerating": { "value": 0.93, "unit": null, "source": "model", "status": "assumed" },
-    "drivetrainEfficiency": { "value": 94, "unit": "%", "source": "model", "status": "assumed" },
-    "rollingResistance": { "value": 0.0055, "unit": null, "source": "model", "status": "assumed" },
-    "batteryRoundTripStep": { "value": 97, "unit": "%", "source": "model (applied on charge and on discharge)", "status": "assumed" },
-    "electronicsLoad": { "value": 25, "unit": "W", "source": "model", "status": "assumed" },
-    "driverMass": { "value": 80, "unit": "kg", "source": "model", "status": "assumed" }
+    "length": {
+      "value": 5.03,
+      "unit": "m",
+      "source": "PVDR (198 in)",
+      "status": "documented"
+    },
+    "width": {
+      "value": 2.12,
+      "unit": "m",
+      "source": "PVDR (83.29 in)",
+      "status": "documented"
+    },
+    "height": {
+      "value": 1.4,
+      "unit": "m",
+      "source": "PVDR (55.32 in, top of canopy)",
+      "status": "documented"
+    },
+    "wheelbase": {
+      "value": 3.25,
+      "unit": "m",
+      "source": "PVDR (128 in)",
+      "status": "documented"
+    },
+    "tyreRadius": {
+      "value": 0.271,
+      "unit": "m",
+      "source": "PVDR (10.68 in)",
+      "status": "documented"
+    },
+    "cockpitFromNose": {
+      "value": 2.87,
+      "unit": "m",
+      "source": "PVDR (113 in)",
+      "status": "documented"
+    },
+    "frontAxleStaticWeight": {
+      "value": 53.9,
+      "unit": "%",
+      "source": "PVDR",
+      "status": "documented"
+    },
+    "designWeightWithDriver": {
+      "value": 1000,
+      "unit": "lb",
+      "source": "PVDR. The report calls this a deliberate overestimate used for load cases.",
+      "status": "documented"
+    },
+    "carMassWithoutDriver": {
+      "value": 373.6,
+      "unit": "kg",
+      "source": "Derived: 1000 lb (453.6 kg) minus the model's 80 kg driver",
+      "status": "documented"
+    },
+    "motor": {
+      "value": "three-phase motor on the left-rear wheel",
+      "unit": null,
+      "source": "PVDR",
+      "status": "documented"
+    },
+    "cells": {
+      "value": "288 Samsung 50S 21700, 32s9p",
+      "unit": null,
+      "source": "electricalPVDR",
+      "status": "documented"
+    },
+    "nominalVoltage": {
+      "value": 115.2,
+      "unit": "V",
+      "source": "electricalPVDR",
+      "status": "documented"
+    },
+    "maximumVoltage": {
+      "value": 134.4,
+      "unit": "V",
+      "source": "electricalPVDR",
+      "status": "documented"
+    },
+    "capacity": {
+      "value": 45,
+      "unit": "Ah",
+      "source": "electricalPVDR",
+      "status": "documented"
+    },
+    "batteryEnergy": {
+      "value": 5.184,
+      "unit": "kWh",
+      "source": "Derived: 115.2 V × 45 Ah, using the electrical PVDR specifications. Nominal, not measured usable energy.",
+      "status": "documented"
+    },
+    "dragArea": {
+      "value": 0.14,
+      "unit": "m^2",
+      "source": "model",
+      "status": "assumed"
+    },
+    "solarArea": {
+      "value": 6,
+      "unit": "m^2",
+      "source": "model (set at the 2026 rule limit)",
+      "status": "assumed"
+    },
+    "cellEfficiency": {
+      "value": 24,
+      "unit": "%",
+      "source": "model",
+      "status": "assumed"
+    },
+    "arrayDerating": {
+      "value": 0.93,
+      "unit": null,
+      "source": "model",
+      "status": "assumed"
+    },
+    "drivetrainEfficiency": {
+      "value": 94,
+      "unit": "%",
+      "source": "model",
+      "status": "assumed"
+    },
+    "rollingResistance": {
+      "value": 0.0055,
+      "unit": null,
+      "source": "model",
+      "status": "assumed"
+    },
+    "batteryRoundTripStep": {
+      "value": 97,
+      "unit": "%",
+      "source": "model (applied on charge and on discharge)",
+      "status": "assumed"
+    },
+    "electronicsLoad": {
+      "value": 25,
+      "unit": "W",
+      "source": "model",
+      "status": "assumed"
+    },
+    "driverMass": {
+      "value": 80,
+      "unit": "kg",
+      "source": "model",
+      "status": "assumed"
+    }
   }
 }
