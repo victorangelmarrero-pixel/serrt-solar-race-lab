@@ -1,0 +1,13 @@
+{
+  "name": "serrt-solar-race-lab",
+  "version": "0.1.0",
+  "description": "Browser game about racing a solar car for three days, built on a tested energy model of SERRT's Pitirre 3.",
+  "private": true,
+  "license": "MIT",
+  "author": "Víctor Marrero",
+  "scripts": {
+    "test": "node tests/physics.cjs",
+    "serve": "python3 -m http.server 8000 -d site"
+  },
+  "engines": { "node": ">=18" }
+}

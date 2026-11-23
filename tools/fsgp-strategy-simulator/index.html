@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FSGP Strategy Simulator</title>
+<style>
+/* Self-hosted fonts, SIL Open Font License (see fonts/OFL-Saira.txt). */
+@font-face{font-family:"Saira";src:url(fonts/saira-latin-wght-normal.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Saira Extra Condensed";src:url(fonts/saira-extra-condensed-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Saira Extra Condensed";src:url(fonts/saira-extra-condensed-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+</style>
+<style>
+/* Layout idea: a pit-wall timing screen. One giant lap count, a three-day telemetry strip under it,
+   controls in a left rail. Amber is the sun, blue is the battery, and nothing else gets a colour. */
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --ink:#131A2A; --muted:#566074; --line:#D2D8E1;
+  --sun:#E9A400; --sun-ink:#8F5F00; --cell:#1F4FD8; --band:#E3E8F0;
+  --good:#1B7F50; --warn:#B93A0B; --good-bg:#DFF3E8; --warn-bg:#FBE6DC;
+  --display:"Saira Extra Condensed","Arial Narrow",Impact,sans-serif;
+  --body:"Saira","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C111E; --surface:#141B2D; --ink:#E9EDF5; --muted:#97A3BA; --line:#28324B;
+    --sun:#FFC233; --sun-ink:#FFC233; --cell:#7096FF; --band:#1B243A;
+    --good:#55D398; --warn:#FF8F63; --good-bg:#12301F; --warn-bg:#3A1C10;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C111E; --surface:#141B2D; --ink:#E9EDF5; --muted:#97A3BA; --line:#28324B;
+  --sun:#FFC233; --sun-ink:#FFC233; --cell:#7096FF; --band:#1B243A;
+  --good:#55D398; --warn:#FF8F63; --good-bg:#12301F; --warn-bg:#3A1C10;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;text-wrap:balance}
+a{color:var(--cell)}
+:focus-visible{outline:2px solid var(--cell);outline-offset:2px;border-radius:3px}
+
+.flag{height:10px;background:
+  conic-gradient(var(--ink) 25%,transparent 0 50%,var(--ink) 0 75%,transparent 0) 0 0/10px 10px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+header.top{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:end;justify-content:space-between;padding:22px 0 18px}
+.top h1{font-family:var(--display);font-weight:700;font-size:clamp(40px,6vw,64px);line-height:.9;letter-spacing:.01em;text-transform:uppercase}
+.top p{margin:6px 0 0;color:var(--muted);max-width:58ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{font:500 13px var(--body);color:var(--muted);background:none;border:0;padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seglabel{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+
+.grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px;align-items:start;padding-bottom:40px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.rail{display:flex;flex-direction:column;gap:14px}
+.group{padding:14px 16px 16px}
+.group h2{font:600 12px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:baseline;margin-top:10px}
+.ctl:first-of-type{margin-top:0}
+.ctl label{font-weight:500}
+.ctl output{font-weight:600}
+.ctl input[type=range]{grid-column:1/-1;width:100%;margin:6px 0 0;accent-color:var(--cell)}
+.ctl small{grid-column:1/-1;color:var(--muted);font-size:12px;margin-top:2px}
+.ctl small b{color:var(--sun-ink);font-weight:600}
+.check{display:flex;gap:8px;align-items:center;margin:2px 0 10px;font-weight:500}
+.check input{accent-color:var(--cell);width:16px;height:16px}
+details.group summary{cursor:pointer;font:600 12px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+details.group[open] summary{margin-bottom:10px}
+
+.main{display:flex;flex-direction:column;gap:20px;min-width:0}
+.hero{padding:18px 20px 16px;display:grid;grid-template-columns:auto 1fr;gap:10px 32px;align-items:end}
+.laps{font-family:var(--display);font-weight:700;font-size:clamp(96px,15vw,170px);line-height:.78;letter-spacing:-.01em}
+.laps-unit{font-family:var(--display);font-weight:600;font-size:26px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px 20px}
+.stat b{display:block;font-family:var(--display);font-weight:600;font-size:34px;line-height:1}
+.stat span{color:var(--muted);font-size:13px}
+.pills{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.pill{font-size:13px;font-weight:500;padding:4px 10px;border-radius:999px;background:var(--band);color:var(--ink)}
+.pill.good{background:var(--good-bg);color:var(--good)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+
+.card{padding:16px 20px 18px}
+.card h2{font-family:var(--display);font-weight:600;font-size:28px;text-transform:uppercase;letter-spacing:.03em;line-height:1}
+.card .sub{color:var(--muted);margin:4px 0 12px;max-width:70ch}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted);margin-bottom:8px}
+.legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:6px;border-radius:2px}
+canvas{display:block;width:100%}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.plan{display:flex;flex-direction:column;gap:10px}
+.planrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.planrow div{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.planrow b{display:block;font-family:var(--display);font-size:34px;font-weight:600;line-height:1}
+.planrow span{font-size:12px;color:var(--muted)}
+.btn{font:600 14px var(--body);background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:10px 14px;cursor:pointer;align-self:start}
+.btn:disabled{opacity:.45;cursor:default}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:right;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:500;color:var(--muted);font-size:12px}
+table.rules td{white-space:normal;text-align:left}
+table.rules td:last-child{color:var(--muted);white-space:nowrap;text-align:right}
+.notes{color:var(--muted);font-size:13px;max-width:78ch}
+.notes p{margin:0 0 8px}
+footer{color:var(--muted);font-size:13px;padding:0 0 36px}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .main{order:-1}
+  .two{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .wrap{padding:0 16px}
+  .hero{grid-template-columns:1fr;position:sticky;top:0;z-index:2;border-radius:0 0 10px 10px;border-top:0}
+  .hero .laps{font-size:84px}
+  .hero .stats{grid-template-columns:repeat(2,1fr)}
+  .hero .stat b{font-size:26px}
+}
+</style>
+</head>
+<body>
+<div class="flag" aria-hidden="true"></div>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>FSGP Strategy Simulator</h1>
+      <p>Three days, 24 hours of track time, one battery. Set up a single-occupant solar car inside the Formula Sun Grand Prix rules and see how many laps it banks.</p>
+    </div>
+    <div>
+      <span class="seglabel">Rule set</span>
+      <div class="seg" role="group" aria-label="Rule set">
+        <button type="button" id="rule-2026" data-rule="r2026" aria-pressed="true">2026 regs</button>
+        <button type="button" id="rule-2025" data-rule="r2025" aria-pressed="false">FSGP 2025 regs</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <aside class="rail" aria-label="Controls">
+      <section class="panel group">
+        <h2>Energy</h2>
+        <div class="ctl"><label for="area">Solar array</label><output id="area-o"></output>
+          <input type="range" id="area" min="2" max="6" step="0.1"><small id="area-n"></small></div>
+        <div class="ctl"><label for="batt">Battery</label><output id="batt-o"></output>
+          <input type="range" id="batt" min="2" max="5.25" step="0.05"><small id="batt-n"></small></div>
+      </section>
+
+      <section class="panel group">
+        <h2>Lap speed</h2>
+        <label class="check"><input type="checkbox" id="lock" checked> Same speed all three days</label>
+        <div class="ctl"><label for="v0" id="v0-l">All days</label><output id="v0-o"></output>
+          <input type="range" id="v0" min="15" max="65" step="1"></div>
+        <div class="ctl" id="v1-c"><label for="v1">Day 2</label><output id="v1-o"></output>
+          <input type="range" id="v1" min="15" max="65" step="1"></div>
+        <div class="ctl" id="v2-c"><label for="v2">Day 3</label><output id="v2-o"></output>
+          <input type="range" id="v2" min="15" max="65" step="1"><small id="v-n"></small></div>
+      </section>
+
+      <section class="panel group">
+        <h2>Cloud cover</h2>
+        <div class="ctl"><label for="c0">Day 1</label><output id="c0-o"></output><input type="range" id="c0" min="0" max="100" step="5"></div>
+        <div class="ctl"><label for="c1">Day 2</label><output id="c1-o"></output><input type="range" id="c1" min="0" max="100" step="5"></div>
+        <div class="ctl"><label for="c2">Day 3</label><output id="c2-o"></output><input type="range" id="c2" min="0" max="100" step="5"></div>
+      </section>
+
+      <details class="panel group" id="car-d" open>
+        <summary>Car</summary>
+        <div class="ctl"><label for="mass">Car mass, no driver</label><output id="mass-o"></output>
+          <input type="range" id="mass" min="140" max="400" step="5"><small id="mass-n"></small></div>
+        <div class="ctl"><label for="cda">Drag area, CdA</label><output id="cda-o"></output>
+          <input type="range" id="cda" min="0.06" max="0.25" step="0.005"></div>
+        <div class="ctl"><label for="crr">Rolling resistance</label><output id="crr-o"></output>
+          <input type="range" id="crr" min="0.003" max="0.012" step="0.0005"></div>
+        <div class="ctl"><label for="eff">Cell efficiency</label><output id="eff-o"></output>
+          <input type="range" id="eff" min="18" max="27" step="0.5"><small>Silicon cells only.</small></div>
+        <div class="ctl"><label for="drv">Motor and controller efficiency</label><output id="drv-o"></output>
+          <input type="range" id="drv" min="85" max="98" step="1"></div>
+      </details>
+
+      <details class="panel group" id="track-d" open>
+        <summary>Track and pit lane</summary>
+        <div class="ctl"><label for="lap">Lap length</label><output id="lap-o"></output>
+          <input type="range" id="lap" min="1" max="4.5" step="0.01"><small>Default is the 3.97 mi main course at Ozarks International Raceway, host of FSGP 2027.</small></div>
+        <div class="ctl"><label for="climb">Climb per lap</label><output id="climb-o"></output>
+          <input type="range" id="climb" min="0" max="90" step="1"></div>
+        <div class="ctl"><label for="corners">Slow corners per lap</label><output id="corners-o"></output>
+          <input type="range" id="corners" min="0" max="12" step="1"><small>Corners taken below 35 mph. Braking into each one costs energy.</small></div>
+        <div class="ctl"><label for="swaps">Driver swaps per day</label><output id="swaps-o"></output>
+          <input type="range" id="swaps" min="1" max="4" step="1"><small id="swaps-n"></small></div>
+        <div class="ctl"><label for="pit">Time per swap</label><output id="pit-o"></output>
+          <input type="range" id="pit" min="2" max="15" step="1"></div>
+        <label class="check" style="margin:12px 0 0"><input type="checkbox" id="tilt" checked> Tilt the array at the sun while charging</label>
+      </details>
+    </aside>
+
+    <main class="main">
+      <section class="panel hero" aria-live="polite">
+        <div>
+          <div class="laps" id="laps">0</div>
+          <div class="laps-unit">official laps</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="s-miles"></b><span id="s-km"></span></div>
+          <div class="stat"><b id="s-avg"></b><span>average over 24 track hours</span></div>
+          <div class="stat"><b id="s-sun"></b><span>collected from the sun</span></div>
+          <div class="stat"><b id="s-soc"></b><span>battery left at the final flag</span></div>
+        </div>
+        <div class="pills" id="pills"></div>
+      </section>
+
+      <section class="panel card">
+        <h2>Three days of energy</h2>
+        <p class="sub">Battery release at 7:00, impound at 20:00. The bottom axis is the hour of day and the shaded band is track time. When sun power sits above the car's draw, the battery fills.</p>
+        <div class="legend">
+          <span><i style="background:var(--cell)"></i>Battery charge</span>
+          <span><i style="background:var(--sun)"></i>Sun power into the array</span>
+          <span><i style="background:var(--muted)"></i>Power the car draws</span>
+        </div>
+        <canvas id="tl" height="260" role="img" aria-label="Battery charge, sun power and car power draw across the three event days"></canvas>
+      </section>
+
+      <div class="two">
+        <section class="panel card">
+          <h2>Laps against speed</h2>
+          <p class="sub">The same car at every constant speed. Too slow wastes track time. Too fast empties the battery and the car crawls on sun power alone.</p>
+          <canvas id="sw" height="230" role="img" aria-label="Official laps for each constant lap speed from 15 to 65 miles per hour"></canvas>
+        </section>
+        <section class="panel card plan">
+          <h2>Best plan found</h2>
+          <p class="sub" id="plan-sub" style="margin-bottom:0"></p>
+          <div class="planrow" id="plan-row"></div>
+          <button type="button" class="btn" id="plan-btn">Use this plan</button>
+        </section>
+      </div>
+
+      <section class="panel card">
+        <h2>Day by day</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Day</th><th>Track hours</th><th>Cloud</th><th>Target</th><th>Laps</th><th>Miles</th><th>Sun in</th><th>Battery at green flag</th><th>Battery at checkered flag</th></tr></thead>
+            <tbody id="days"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel card">
+        <h2>Rules in the model</h2>
+        <p class="sub" id="rules-sub"></p>
+        <div class="tablewrap"><table class="rules"><tbody id="rules"></tbody></table></div>
+      </section>
+
+      <section class="panel card notes">
+        <h2 style="color:var(--ink)">What the model assumes</h2>
+        <p style="margin-top:8px">Sun position is computed for Gravois Mills, Missouri (38.27° N) in mid-July, with a clear-sky irradiance curve dimmed by each day's cloud cover. Array output is area × cell efficiency × 0.93 for wiring, tracker and heat losses.</p>
+        <p>Car power is aerodynamic drag plus rolling resistance plus braking losses on the corners and hills you set, divided by drivetrain efficiency, plus 25 W of electronics. Regenerative braking returns half of the corner energy. Battery charge and discharge are each 97% efficient.</p>
+        <p>The car starts day 1 with a full battery. If the battery empties, the car slows to the speed the array can sustain. Below 10 mph it parks and charges to 15% before rejoining. Laps are counted per day as whole laps completed before the checkered flag. Reliability, traffic, tire changes and penalties are not modelled, so a real team will score lower.</p>
+        <p>Rules come from the <a href="https://www.americansolarchallenge.org/wp-content/uploads/2025/11/ASC2026_Regulations_Revision_B.pdf">ASC/FSGP 2026 Regulations, Revision B</a> and the <a href="https://www.americansolarchallenge.org/wp-content/uploads/2025/11/FSGP2025-Regs-RevC.pdf">FSGP 2025 Regulations, Release C</a>, both published by the Innovators Educational Foundation. Check the current revision before relying on a number. Tilting the array on stands is standard charging practice and is treated here as allowed.</p>
+      </section>
+    </main>
+  </div>
+  <footer>Built for SERRT, the Solar Engineering Research Racing Team at the University of Puerto Rico, Mayagüez. Car defaults are example values for a typical single-occupant car, not a specific vehicle.</footer>
+</div>
+
+<script id="model">
+/* ---------- Pure model: no DOM in this block ---------- */
+const MPH = 0.44704, MILE = 1609.344, G = 9.81, RHO = 1.17;
+const DAYS = [{start:10,end:18},{start:9,end:17},{start:9,end:17}];
+const T0 = 7, T1 = 20, STEPS = (T1 - T0) * 60;
+const SITE = {lat:38.27, decl:21.5, noon:13.29};           // Ozarks International Raceway, mid-July, CDT
+const SYS = 0.93, P_ELEC = 25, ETA_BATT = 0.97, REGEN = 0.5, V_CORNER = 35 * MPH, MIN_V = 10 * MPH;
+
+const RULES = {
+  r2026:{name:"ASC/FSGP 2026 Regulations, Revision B", arrayMax:6, battMax:5.25, dims:"5.80 × 2.30 × 1.65 m", qual:true,
+    ref:{array:"8.1.B",batt:"8.2.A",mass:"9.9",driver:"11.3",days:"14.1",hours:"14.9.E",impound:"14.13.B",charge:"14.13.A",speed:"14.14.A",win:"14.3.A",qual:"14.12.A",dims:"9.1"}},
+  r2025:{name:"FSGP 2025 Regulations, Release C", arrayMax:4, battMax:5.25, dims:"5.00 × 2.20 × 1.60 m", qual:false,
+    ref:{array:"8.1.B",batt:"8.2.A",mass:"9.7",driver:"11.4",days:"12.1",hours:"12.9",impound:"12.12",charge:"12.12",speed:"12.13",win:"12.2",dims:"9.1"}}
+};
+
+function irradiance(t, cloud){                  // W/m2 on a flat array and on one aimed at the sun
+  const r = Math.PI / 180, H = (t - SITE.noon) * 15 * r;
+  const s = Math.sin(SITE.lat*r)*Math.sin(SITE.decl*r) + Math.cos(SITE.lat*r)*Math.cos(SITE.decl*r)*Math.cos(H);
+  if (s <= 0.01) return {flat:0, tilt:0};
+  const el = Math.asin(s) / r;
+  const am = 1 / (s + 0.50572 * Math.pow(el + 6.07995, -1.6364));
+  const dni = 1353 * Math.pow(0.7, Math.pow(am, 0.678));
+  const ghi = 1.1 * dni * s;
+  const k = 1 - 0.75 * Math.pow(cloud, 3.4);    // Kasten-Czeplak cloud dimming
+  const dirH = dni * s * (1 - cloud);
+  const dif = Math.max(0, k * ghi - dirH);
+  return {flat: dirH + dif, tilt: dni * (1 - cloud) + dif};
+}
+function buildSky(clouds){
+  return clouds.map(c => {
+    const flat = new Float64Array(STEPS), tilt = new Float64Array(STEPS);
+    for (let i = 0; i < STEPS; i++){ const q = irradiance(T0 + (i + 0.5) / 60, c); flat[i] = q.flat; tilt[i] = q.tilt; }
+    return {flat, tilt};
+  });
+}
+function drawPower(p, v){                        // electrical watts at speed v (m/s)
+  if (v <= 0) return P_ELEC;
+  const m = p.mass + 80, L = p.lap * MILE;
+  const vc = Math.min(v, V_CORNER);
+  const trackJ = p.corners * 0.5 * m * (v*v - vc*vc) * (1 - REGEN) + m * G * p.climb * 0.2;
+  const force = 0.5 * RHO * p.cda * v * v + p.crr * m * G + trackJ / L;
+  return v * force / p.drv + P_ELEC;
+}
+function solarSpeed(p, watts, vmax){
+  if (drawPower(p, MIN_V) > watts) return 0;
+  if (drawPower(p, vmax) <= watts) return vmax;
+  let lo = MIN_V, hi = vmax;
+  for (let i = 0; i < 24; i++){ const mid = (lo + hi) / 2; if (drawPower(p, mid) > watts) hi = mid; else lo = mid; }
+  return lo;
+}
+function simulate(p, speeds, sky, record){
+  const cap = p.batt * 1000, L = p.lap * MILE, kArr = p.area * p.eff * SYS;
+  let E = cap;
+  const out = {days:[], laps:0, miles:0, rawMiles:0, sun:0, clipped:0, flatAt:null, series: record ? [] : null};
+  for (let d = 0; d < 3; d++){
+    const {start, end} = DAYS[d], vt = speeds[d] * MPH, pt = drawPower(p, vt);
+    let dist = 0, sun = 0, parked = false, eGo = E, eFlag = E;
+    const ser = record ? {soc:new Float32Array(STEPS), sun:new Float32Array(STEPS), draw:new Float32Array(STEPS)} : null;
+    for (let i = 0; i < STEPS; i++){
+      const t = T0 + (i + 0.5) / 60;
+      const racing = t >= start && t < end;
+      if (t < start) eGo = E;
+      if (t < end) eFlag = E;
+      const charging = t < start - 0.25 || t >= end + 1/6;
+      let v = 0, useTilt = charging && p.tilt;
+      if (racing){
+        let inPit = false;
+        for (let k = 1; k <= p.swaps; k++){ const tk = start + k * 8 / (p.swaps + 1); if (t >= tk && t < tk + p.pit / 60) inPit = true; }
+        if (parked && E >= 0.15 * cap) parked = false;
+        if (!inPit && !parked) v = vt;
+        if (parked) useTilt = p.tilt;
+      }
+      let ps = kArr * (useTilt ? sky[d].tilt[i] : sky[d].flat[i]);
+      let pd = v > 0 ? pt : (racing ? P_ELEC : 0);
+      const avail = ps + Math.max(E, 0) * 60 * ETA_BATT;   // sun plus whatever the battery can still give this minute
+      if (v > 0 && pd > avail){
+        if (out.flatAt === null) out.flatAt = {day:d, t};
+        v = solarSpeed(p, avail, vt);
+        if (v <= 0){ parked = true; pd = P_ELEC; if (p.tilt) ps = kArr * sky[d].tilt[i]; }
+        else pd = drawPower(p, v);
+      }
+      const net = ps - pd;
+      E += net > 0 ? net / 60 * ETA_BATT : net / 60 / ETA_BATT;
+      if (E > cap){ out.clipped += E - cap; E = cap; }
+      if (E < 0) E = 0;
+      sun += ps / 60; dist += v * 60;
+      if (ser){ ser.soc[i] = E / cap; ser.sun[i] = ps; ser.draw[i] = pd; }
+    }
+    const laps = Math.floor(dist / L + 1e-9);
+    out.days.push({laps, miles: laps * p.lap, raw: dist / MILE, sun: sun / 1000, socStart: eGo / cap, socEnd: eFlag / cap});
+    out.laps += laps; out.miles += laps * p.lap; out.rawMiles += dist / MILE; out.sun += sun / 1000;
+    if (ser) out.series.push(ser);
+  }
+  out.clipped /= 1000; out.socEnd = out.days[2].socEnd; out.score = out.laps + out.rawMiles * 1e-4;
+  return out;
+}
+function sweep(p, sky){
+  const pts = [];
+  for (let v = 15; v <= 65; v++){ const r = simulate(p, [v, v, v], sky, false); pts.push({v, laps:r.laps, score:r.score}); }
+  return pts;
+}
+function optimise(p, sky, sw){
+  let best = sw.reduce((a, b) => b.score > a.score ? b : a);
+  let cur = [best.v, best.v, best.v], score = best.score;
+  for (const step of [8, 4, 2, 1]){
+    let moved = true;
+    while (moved){
+      moved = false;
+      for (let d = 0; d < 3; d++) for (const s of [step, -step]){
+        const t = cur.slice(); t[d] = Math.min(65, Math.max(15, t[d] + s));
+        if (t[d] === cur[d]) continue;
+        const r = simulate(p, t, sky, false);
+        if (r.score > score + 1e-9){ cur = t; score = r.score; moved = true; }
+      }
+    }
+  }
+  return {speeds:cur, constant:best.v, result:simulate(p, cur, sky, false)};
+}
+function qualifies(days){                         // 200 mi in one day, or 300 mi over two consecutive days
+  for (let d = 0; d < 3; d++) if (days[d].miles >= 200) return "Day " + (d + 1) + ", " + Math.round(days[d].miles) + " mi";
+  for (let d = 0; d < 2; d++) if (days[d].miles + days[d+1].miles >= 300) return "Days " + (d+1) + " and " + (d+2);
+  return null;
+}
+if (typeof module !== "undefined") module.exports = {simulate, sweep, optimise, buildSky, drawPower, irradiance, qualifies, RULES};
+</script>
+
+<script>
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+const DEFAULTS = {rule:"r2026", area:6, batt:5.25, lock:true, v:[45,45,45], c:[10,60,20],
+  mass:220, cda:0.11, crr:0.0055, eff:24, drv:94, lap:3.97, climb:45, corners:5, swaps:1, pit:5, tilt:true};
+let S = JSON.parse(JSON.stringify(DEFAULTS));
+let lastPlan = null;
+
+function params(){
+  return {area:S.area, batt:S.batt, mass:S.mass, cda:S.cda, crr:S.crr, eff:S.eff/100, drv:S.drv/100,
+    lap:S.lap, climb:S.climb, corners:S.corners, swaps:S.swaps, pit:S.pit, tilt:S.tilt};
+}
+const fmt = (n, d=0) => n.toLocaleString("en-US", {minimumFractionDigits:d, maximumFractionDigits:d});
+const clock = t => { const h = Math.floor(t), m = Math.floor((t - h) * 60); return h + ":" + String(m).padStart(2, "0"); };
+
+function syncControls(){
+  const R = RULES[S.rule];
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.rule === S.rule)));
+  $("area").max = R.arrayMax; S.area = Math.min(S.area, R.arrayMax);
+  const set = (id, val, text) => { $(id).value = val; $(id + "-o").textContent = text; };
+  set("area", S.area, fmt(S.area, 1) + " m²");
+  $("area-n").innerHTML = "Reg. " + R.ref.array + " caps a single-occupant array at <b>" + fmt(R.arrayMax, 2) + " m²</b>.";
+  set("batt", S.batt, fmt(S.batt, 2) + " kWh");
+  $("batt-n").innerHTML = "Reg. " + R.ref.batt + " caps the pack at <b>5.25 kWh</b>.";
+  const sp = v => v + " mph · " + Math.round(v * 1.609) + " km/h";
+  $("lock").checked = S.lock;
+  $("v0-l").textContent = S.lock ? "All days" : "Day 1";
+  $("v1-c").hidden = S.lock; $("v2-c").hidden = S.lock;
+  set("v0", S.v[0], sp(S.v[0])); set("v1", S.v[1], sp(S.v[1])); set("v2", S.v[2], sp(S.v[2]));
+  $("v-n").innerHTML = "Reg. " + R.ref.speed + " limits cars to <b>65 mph</b> on track.";
+  for (let d = 0; d < 3; d++) set("c" + d, S.c[d], S.c[d] + "%");
+  set("mass", S.mass, S.mass + " kg");
+  $("mass-n").innerHTML = "Reg. " + R.ref.mass + " ballasts every driver to <b>80 kg</b>, so the car races at " + (S.mass + 80) + " kg.";
+  set("cda", S.cda, fmt(S.cda, 3) + " m²"); set("crr", S.crr, fmt(S.crr, 4));
+  set("eff", S.eff, fmt(S.eff, 1) + "%"); set("drv", S.drv, S.drv + "%");
+  set("lap", S.lap, fmt(S.lap, 2) + " mi · " + fmt(S.lap * 1.609, 2) + " km");
+  set("climb", S.climb, S.climb + " m"); set("corners", S.corners, String(S.corners));
+  set("swaps", S.swaps, String(S.swaps)); set("pit", S.pit, S.pit + " min");
+  $("swaps-n").innerHTML = "Reg. " + R.ref.driver + " allows a driver <b>6 hours</b> a day, so an 8-hour day needs at least one swap.";
+  $("tilt").checked = S.tilt;
+}
+
+let res, sw, sky;
+function compute(){
+  const p = params(); sky = buildSky(S.c.map(c => c / 100));
+  const speeds = S.lock ? [S.v[0], S.v[0], S.v[0]] : S.v;
+  res = simulate(p, speeds, sky, true);
+  sw = sweep(p, sky);
+  lastPlan = optimise(p, sky, sw);
+  render(speeds);
+}
+function render(speeds){
+  const R = RULES[S.rule];
+  $("laps").textContent = fmt(res.laps);
+  $("s-miles").textContent = fmt(res.miles) + " mi";
+  $("s-km").textContent = fmt(res.miles * 1.609) + " km of official laps";
+  $("s-avg").textContent = fmt(res.rawMiles / 24, 1) + " mph";
+  $("s-sun").textContent = fmt(res.sun, 1) + " kWh";
+  $("s-soc").textContent = Math.round(res.socEnd * 100) + "%";
+
+  const pills = [];
+  if (R.qual){
+    const q = qualifies(res.days);
+    pills.push(q ? ["good", "ASC qualifying distance met: " + q] : ["warn", "Short of ASC qualifying: 200 mi in a day or 300 mi over two"]);
+  }
+  if (res.flatAt) pills.push(["warn", "Battery ran flat on day " + (res.flatAt.day + 1) + " at " + clock(res.flatAt.t) + ", then sun power only"]);
+  if (res.socEnd > 0.12) pills.push(["", Math.round(res.socEnd * 100) + "% left unused at the finish. Go faster"]);
+  if (res.clipped > 0.3) pills.push(["", fmt(res.clipped, 1) + " kWh of sun wasted on a full battery"]);
+  const gap = lastPlan.result.laps - res.laps;
+  if (gap <= 0) pills.push(["good", "This matches the best plan found"]);
+  $("pills").innerHTML = pills.map(([c, t]) => '<span class="pill ' + c + '">' + t + "</span>").join("");
+
+  $("days").innerHTML = res.days.map((d, i) =>
+    "<tr><td>Day " + (i+1) + "</td><td>" + DAYS[i].start + ":00 to " + DAYS[i].end + ":00</td><td>" + S.c[i] + "%</td><td>" + speeds[i] +
+    " mph</td><td>" + d.laps + "</td><td>" + fmt(d.miles, 1) + "</td><td>" + fmt(d.sun, 1) + " kWh</td><td>" +
+    Math.round(d.socStart*100) + "%</td><td>" + Math.round(d.socEnd*100) + "%</td></tr>").join("");
+
+  const pl = lastPlan;
+  $("plan-row").innerHTML = pl.speeds.map((v, i) => "<div><span>Day " + (i+1) + "</span><b>" + v + "</b><span>mph</span></div>").join("");
+  $("plan-sub").textContent = gap > 0
+    ? fmt(pl.result.laps) + " laps, " + gap + " more than your current plan. Searched over a separate speed for each day."
+    : fmt(pl.result.laps) + " laps. Your current speeds already match it.";
+  $("plan-btn").disabled = gap <= 0;
+
+  const rf = R.ref, rows = [
+    ["Single-occupant solar array up to " + fmt(R.arrayMax, 2) + " m² of silicon cells", rf.array],
+    ["Battery up to 5.25 kWh", rf.batt],
+    ["Every driver ballasted to 80 kg", rf.mass],
+    ["A driver may spend 6 hours a day in the car", rf.driver],
+    ["Three track days on a closed course", rf.days],
+    ["Track hours: day 1 from 10:00 to 18:00, days 2 and 3 from 9:00 to 17:00", rf.hours],
+    ["Batteries released at 7:00 and impounded by 20:00", rf.impound],
+    ["Once the event starts, the array is the only charging source", rf.charge],
+    ["Top speed 65 mph (104.2 km/h)", rf.speed],
+    ["Most official laps wins. Fastest single lap breaks ties", rf.win]];
+  if (R.qual) rows.push(["Qualifying for the road race takes 200 mi in one day or 300 mi over two consecutive days", rf.qual]);
+  rows.push(["Car fits inside " + R.dims + " (length × width × height). Shown for reference", rf.dims]);
+  $("rules-sub").textContent = R.name + ", Innovators Educational Foundation.";
+  $("rules").innerHTML = rows.map(r => "<tr><td>" + r[0] + "</td><td>Reg. " + r[1] + "</td></tr>").join("");
+  drawTimeline(); drawSweep(speeds);
+}
+
+/* ---------- Charts ---------- */
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function setup(cv, h){
+  const w = cv.clientWidth, dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + "px";
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  return {g, w};
+}
+function drawTimeline(){
+  const cv = $("tl"), stacked = cv.clientWidth < 600;
+  const H = stacked ? 510 : 260, {g, w} = setup(cv, H);
+  const ink = css("--ink"), muted = css("--muted"), line = css("--line"), sun = css("--sun"), cell = css("--cell"), band = css("--band");
+  let pmax = 500;
+  res.series.forEach(s => { for (let i = 0; i < STEPS; i++) pmax = Math.max(pmax, s.sun[i], s.draw[i]); });
+  pmax = Math.ceil(pmax / 500) * 500;
+  const gap = 14, padL = 34, padR = 50, padT = 24, padB = 22;
+  const pw = stacked ? w : (w - 2 * gap) / 3, ph = stacked ? (H - 2 * gap) / 3 : H;
+  g.font = "12px Saira, sans-serif"; g.textBaseline = "middle";
+  for (let d = 0; d < 3; d++){
+    const ox = stacked ? 0 : d * (pw + gap), oy = stacked ? d * (ph + gap) : 0;
+    const x0 = ox + padL, x1 = ox + pw - padR, y0 = oy + padT, y1 = oy + ph - padB;
+    const X = t => x0 + (t - T0) / (T1 - T0) * (x1 - x0), Y = f => y1 - f * (y1 - y0);
+    g.fillStyle = band; g.fillRect(X(DAYS[d].start), y0, X(DAYS[d].end) - X(DAYS[d].start), y1 - y0);
+    g.strokeStyle = line; g.lineWidth = 1; g.beginPath();
+    [0, .5, 1].forEach(f => { g.moveTo(x0, Math.round(Y(f)) + .5); g.lineTo(x1, Math.round(Y(f)) + .5); }); g.stroke();
+    const s = res.series[d], path = (arr, scale) => { g.beginPath(); for (let i = 0; i < STEPS; i += 2){ const x = X(T0 + i / 60), y = Y(arr[i] / scale); i ? g.lineTo(x, y) : g.moveTo(x, y); } };
+    path(s.soc, 1); g.lineTo(x1, y1); g.lineTo(x0, y1); g.closePath(); g.globalAlpha = .16; g.fillStyle = cell; g.fill(); g.globalAlpha = 1;
+    path(s.draw, pmax); g.strokeStyle = muted; g.lineWidth = 1.25; g.stroke();
+    path(s.sun, pmax); g.strokeStyle = sun; g.lineWidth = 2; g.stroke();
+    path(s.soc, 1); g.strokeStyle = cell; g.lineWidth = 2; g.stroke();
+    const ex = X(T1 - 1/60), ey = Y(s.soc[STEPS - 1]); g.fillStyle = cell; g.beginPath(); g.arc(ex, ey, 3.5, 0, 7); g.fill();
+    g.fillStyle = ink; g.textAlign = "left"; g.font = "600 13px Saira, sans-serif"; g.fillText("Day " + (d + 1), x0, oy + 10);
+    g.font = "12px Saira, sans-serif"; g.fillStyle = muted; g.fillText(res.days[d].laps + " laps", x0 + 46, oy + 10);
+    g.textAlign = "right"; g.fillStyle = cell; ["0%", "50%", "100%"].forEach((t, i) => g.fillText(t, x0 - 5, Y(i / 2)));
+    g.textAlign = "left"; g.fillStyle = muted; [0, .5, 1].forEach(f => g.fillText(fmt(pmax * f / 1000, pmax % 1000 ? 2 : 1) + (f === 1 ? " kW" : ""), x1 + 5, Y(f)));
+    g.textAlign = "center"; [7, DAYS[d].start, 13, DAYS[d].end, 20].forEach(t => g.fillText(t, X(t), y1 + 12));
+  }
+}
+function drawSweep(speeds){
+  const cv = $("sw"), H = 230, {g, w} = setup(cv, H);
+  const ink = css("--ink"), muted = css("--muted"), line = css("--line"), sun = css("--sun"), cell = css("--cell");
+  const lo = Math.min(...sw.map(p => p.laps)), hi = Math.max(...sw.map(p => p.laps));
+  const step = [5, 10, 20, 25, 50, 100, 200].find(s => (hi - lo) / s <= 5) || 500;
+  const y0v = Math.floor(lo / step) * step, y1v = Math.max(y0v + step, Math.ceil(hi / step) * step);
+  const padL = 40, padR = 14, padT = 22, padB = 34, x0 = padL, x1 = w - padR, y0 = padT, y1 = H - padB;
+  const X = v => x0 + (v - 15) / 50 * (x1 - x0), Y = n => y1 - (n - y0v) / (y1v - y0v) * (y1 - y0);
+  g.font = "12px Saira, sans-serif"; g.textBaseline = "middle"; g.strokeStyle = line; g.lineWidth = 1;
+  g.fillStyle = muted; g.textAlign = "right";
+  for (let n = y0v; n <= y1v; n += step){ const y = Math.round(Y(n)) + .5; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); g.fillText(n, x0 - 6, y); }
+  g.textAlign = "center"; for (let v = 15; v <= 65; v += 10) g.fillText(v, X(v), y1 + 12);
+  g.fillText("constant lap speed, mph", (x0 + x1) / 2, H - 8);
+  g.beginPath(); sw.forEach((p, i) => i ? g.lineTo(X(p.v), Y(p.laps)) : g.moveTo(X(p.v), Y(p.laps)));
+  g.strokeStyle = cell; g.lineWidth = 2; g.stroke();
+  g.lineTo(x1, y1); g.lineTo(x0, y1); g.closePath(); g.globalAlpha = .12; g.fillStyle = cell; g.fill(); g.globalAlpha = 1;
+  const b = sw.find(p => p.v === lastPlan.constant);
+  g.fillStyle = sun; g.beginPath(); g.arc(X(b.v), Y(b.laps), 5.5, 0, 7); g.fill();
+  g.fillStyle = ink; g.font = "600 12px Saira, sans-serif";
+  const lx = X(b.v) > (x0 + x1) / 2; g.textAlign = lx ? "right" : "left";
+  g.fillText("Best: " + b.v + " mph, " + b.laps + " laps", X(b.v) + (lx ? -10 : 10), Math.max(y0 + 8, Y(b.laps) - 12));
+  if (speeds[0] === speeds[1] && speeds[1] === speeds[2]){
+    const c = sw.find(p => p.v === speeds[0]); if (c && c.v !== b.v){
+      g.strokeStyle = ink; g.setLineDash([3, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(X(c.v), y1); g.lineTo(X(c.v), Y(c.laps)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = ink; g.beginPath(); g.arc(X(c.v), Y(c.laps), 4, 0, 7); g.fill();
+      g.font = "12px Saira, sans-serif"; g.textAlign = "left";
+      g.fillText("You: " + c.v + " mph, " + c.laps + " laps", Math.min(X(c.v) + 8, x1 - 120), Math.min(y1 - 10, Y(c.laps) + 18));
+    }
+  }
+}
+
+/* ---------- Wiring ---------- */
+let queued = false;
+function update(){ syncControls(); if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; compute(); }); }
+const num = (id, key, idx) => $(id).addEventListener("input", e => {
+  const v = parseFloat(e.target.value); if (idx === undefined) S[key] = v; else S[key][idx] = v;
+  if (key === "v" && S.lock) S.v = [v, v, v];
+  update();
+});
+["area","batt","mass","cda","crr","eff","drv","lap","climb","corners","swaps","pit"].forEach(k => num(k, k));
+[0,1,2].forEach(d => { num("v" + d, "v", d); num("c" + d, "c", d); });
+$("lock").addEventListener("change", e => { S.lock = e.target.checked; if (S.lock) S.v = [S.v[0], S.v[0], S.v[0]]; update(); });
+$("tilt").addEventListener("change", e => { S.tilt = e.target.checked; update(); });
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  const was = RULES[S.rule].arrayMax; S.rule = b.dataset.rule;
+  if (S.area === was) S.area = RULES[S.rule].arrayMax;
+  update();
+}));
+$("plan-btn").addEventListener("click", () => {
+  S.v = lastPlan.speeds.slice(); S.lock = S.v[0] === S.v[1] && S.v[1] === S.v[2]; update();
+});
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (res){ drawTimeline(); drawSweep(S.lock ? [S.v[0],S.v[0],S.v[0]] : S.v); } }, 120); });
+const redraw = () => { if (res){ drawTimeline(); drawSweep(S.lock ? [S.v[0],S.v[0],S.v[0]] : S.v); } };
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw);
+new MutationObserver(redraw).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+
+function start(saved){ if (saved && saved.rule) S = Object.assign({}, DEFAULTS, saved); syncControls(); compute(); }
+window.claude?.hot?.snapshot?.(() => S);
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>

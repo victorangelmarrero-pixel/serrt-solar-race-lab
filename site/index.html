@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111815">
+<title>SERRT Solar Race Lab</title>
+<meta name="author" content="Víctor Marrero">
+<link rel="icon" type="image/webp" href="assets/serrt-logo.webp">
+<link rel="preload" href="assets/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/dm-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Night-green garage, lime for the player and for energy (kept from the original Race Lab).
+   Play tab: three big choices -> live race with decision cards -> short debrief. Numbers live in "Under the hood". */
+/* Self-hosted variable fonts (SIL Open Font License, see assets/fonts). */
+@font-face{font-family:Manrope;src:url(assets/fonts/manrope-latin-wght-normal.woff2) format("woff2");font-weight:500 800;font-style:normal;font-display:swap}
+@font-face{font-family:"DM Sans";src:url(assets/fonts/dm-sans-latin-wght-normal.woff2) format("woff2");font-weight:400 700;font-style:normal;font-display:swap}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+:root{
+  color-scheme:dark;
+  --bg:#111815; --panel:#1a221e; --panel2:#212b25; --line:#303c33; --muted:#a0ada2; --text:#edf1e6;
+  --lime:#d7f269; --yellow:#ffca54; --coral:#f18978; --sky:#8fc7d8;
+  --display:Manrope,"Segoe UI",Arial,sans-serif; --body:"DM Sans","Segoe UI",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+a{color:var(--lime)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:4px}
+.wrap{max-width:1280px;margin:0 auto;padding:0 20px}
+.eyebrow{color:var(--lime);font-size:12px;letter-spacing:.16em;font-weight:700;text-transform:uppercase}
+.micro{color:var(--muted);font-size:12.5px}
+.pill{font-size:12px;letter-spacing:.12em;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:3px 8px;color:var(--muted);white-space:nowrap}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.pad{padding:16px 18px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.panel-head h2{font-size:17px;font-weight:700}
+.primary{background:var(--lime);color:#172012;border:0;border-radius:10px;padding:11px 16px;font-weight:700;text-decoration:none;display:inline-block}
+.primary.big{font-size:18px;padding:15px 24px;font-family:var(--display)}
+.quiet{background:transparent;border:1px solid #465344;border-radius:9px;padding:9px 13px;text-decoration:none;color:var(--text);display:inline-block}
+.textbtn{background:none;border:0;color:var(--muted);padding:6px 0;text-decoration:underline;text-underline-offset:3px}
+select{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+
+header.top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:.14em}
+.brand img{height:42px;width:auto;background:#f4f6ee;border-radius:8px;padding:3px 6px}
+.brand small{display:block;font-size:12px;letter-spacing:.2em;color:var(--muted);font-weight:600}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs a{padding:8px 14px;border-radius:9px;color:var(--muted);text-decoration:none;font-weight:600;white-space:nowrap}
+.tabs a[aria-current="page"]{background:var(--lime);color:#172012}
+.screen{padding:22px 0 8px}
+
+/* ---- Garage wizard ---- */
+.build{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:18px;align-items:start}
+.showroom{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 55%,#2a3a30,#141c18 75%)}
+.showroom canvas{display:block;width:100%;height:320px}
+.showroom .tag{position:absolute;left:14px;top:12px;background:#111815b3}
+.showroom .dims{position:absolute;right:14px;top:12px;font-size:12.5px;color:var(--muted)}
+.why{position:absolute;left:14px;right:14px;bottom:12px;background:#111815e0;border-left:3px solid var(--lime);border-radius:8px;padding:8px 12px;font-weight:500;min-height:38px}
+.meters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin-top:14px}
+.m{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:baseline}
+.m span{font-weight:600}
+.m b{font-family:var(--display);font-size:15px}
+.m .bar{grid-column:1/-1;height:9px;border-radius:5px;background:#34403a;overflow:hidden}
+.m .bar i{display:block;height:100%;border-radius:5px;background:var(--c,var(--lime));width:0;transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.m em{grid-column:1/-1;font-style:normal;font-size:12px;font-weight:700;height:16px;color:var(--lime);opacity:0;transition:opacity .3s}
+.m em.show{opacity:1} .m em.bad{color:var(--coral)}
+.scorebox{display:flex;align-items:center;gap:18px;margin-top:10px;padding:14px 16px;border-radius:12px;border:1px solid #4a5a34;background:#1f2a1c}
+.scorebox .num{font:800 54px/1 var(--display);letter-spacing:-.03em;color:var(--lime)}
+.scorebox .num.pop{animation:pop .45s}
+@keyframes pop{30%{transform:scale(1.12)}}
+.scorebox p{color:var(--muted);font-size:13px}
+.scorebox strong{display:block;font-family:var(--display);font-size:18px;color:var(--text)}
+.steps{display:flex;gap:6px;margin-bottom:12px}
+.steps button{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 10px;text-align:left;font-weight:700;color:var(--muted);min-width:0}
+.steps button small{display:block;font-size:12px;letter-spacing:.14em;color:var(--muted);font-weight:700}
+.steps button[aria-current="step"]{border-color:var(--lime);color:var(--text);background:#1f2a1c}
+.stephead h2{font-size:clamp(24px,3vw,32px);letter-spacing:-.02em;line-height:1.1}
+.stephead p{color:var(--muted);margin:6px 0 14px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.cards.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:left;display:flex;flex-direction:column;gap:6px;min-width:0;transition:transform .12s,border-color .12s}
+.card:hover{transform:translateY(-2px);border-color:#6b7d55}
+.card[aria-pressed="true"]{border-color:var(--lime);box-shadow:inset 0 0 0 1px var(--lime);background:#232f20}
+.card b{font-family:var(--display);font-size:16px}
+.card small{color:var(--muted);font-size:12.5px;line-height:1.3}
+.card .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+.card .tags i{font-style:normal;font-size:12px;font-weight:700;border-radius:5px;padding:2px 6px;background:#2f3d2a;color:var(--lime)}
+.card .tags i.bad{background:#3d2a26;color:var(--coral)}
+.shape{height:46px;display:grid;place-items:center}
+.shape i{display:block;background:var(--lime);border-radius:40% 60% 60% 40%/50%;position:relative}
+.shape i::after{content:"";position:absolute;inset:22% 30% 22% 14%;background:#133b4b;border-radius:3px}
+.sky3{display:flex;gap:4px}
+.sky3 i{flex:1;height:22px;border-radius:5px;background:linear-gradient(180deg,#7fc4e0,#e8e39a);position:relative;overflow:hidden}
+.sky3 i::after{content:"";position:absolute;inset:0;background:#4b5753;opacity:var(--c)}
+.tune{margin-top:16px;border-top:1px solid var(--line);padding-top:4px}
+.ctl{margin-top:12px}
+.ctl .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ctl label{font-weight:600}
+.ctl output{font-family:var(--display);font-weight:700;color:var(--lime)}
+.ctl .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;margin:0;--fill:50%}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--lime) var(--fill),#3a463c var(--fill))}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:linear-gradient(90deg,var(--lime) var(--fill),#3a463c var(--fill))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--text);border:4px solid var(--lime);margin-top:-7px}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--text);border:4px solid var(--lime)}
+input[type=range]:disabled{opacity:.4}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.wiznav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap}
+
+/* ---- Race ---- */
+.racetop{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.clock{display:flex;align-items:baseline;gap:12px}
+.clock strong{font-family:var(--display);font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.clock span{font-size:12px;letter-spacing:.16em;color:var(--lime);font-weight:700}
+.clock small{color:var(--muted);font-size:13px}
+.wx{display:flex;align-items:center;gap:10px;color:var(--muted)}
+.wx b{color:var(--text)}
+.wxbar{width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--yellow),#7f8b86);position:relative}
+.wxbar i{position:absolute;top:-4px;width:4px;height:16px;border-radius:2px;background:var(--text);left:0;transform:translateX(-2px)}
+.transport{display:flex;gap:6px;align-items:center}
+.transport button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-weight:700}
+.transport button[aria-pressed="true"]{background:var(--lime);color:#172012;border-color:var(--lime)}
+.racegrid{display:grid;grid-template-columns:minmax(0,1fr) 262px;gap:14px;align-items:stretch}
+.stage{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#92aa7c;aspect-ratio:1000/580;align-self:start}
+.stage canvas{display:block;width:100%;height:100%}
+.caption{position:absolute;left:12px;bottom:9px;font-size:12px;letter-spacing:.14em;font-weight:700;color:#2f4530}
+#banner{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;opacity:0;transition:opacity .25s}
+#banner.show{opacity:1}
+#banner div{background:#111815e6;border:1px solid var(--lime);border-radius:12px;padding:14px 26px;text-align:center}
+#banner b{display:block;font:800 30px var(--display)}
+#banner span{color:var(--muted)}
+#ticker{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none;max-width:70%}
+#ticker div{background:#111815d9;border-left:3px solid var(--c,var(--lime));border-radius:6px;padding:5px 9px;font-size:13px;animation:tick 5s forwards}
+@keyframes tick{0%{opacity:0;transform:translateX(12px)}6%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+#decision{position:absolute;inset:0;background:#0d1310b8;display:grid;place-items:center;padding:14px;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.dcard{background:var(--panel);border:1px solid var(--lime);border-radius:16px;padding:18px 20px;max-width:620px;width:100%;box-shadow:0 20px 60px #0008}
+.dcard h2{font-size:clamp(20px,3vw,28px);letter-spacing:-.02em;margin:4px 0 4px}
+.dcard p{color:var(--muted);margin-bottom:12px}
+.dopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.dopts button{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:left;display:flex;flex-direction:column;gap:4px}
+.dopts button:hover{border-color:var(--lime);background:#232f20}
+.dopts b{font-family:var(--display);font-size:17px}
+.dopts small{color:var(--muted);font-size:12.5px;line-height:1.3}
+.dopts button.rec{border-color:var(--lime);background:#222d1f}
+.dopts button.rec::before{content:"COACH PICK";font:700 12px var(--body);letter-spacing:.12em;color:var(--lime)}
+.dtimer{height:3px;background:var(--lime);border-radius:2px;margin-top:12px;transform-origin:left;animation:shrink linear forwards}
+@keyframes shrink{to{transform:scaleX(0)}}
+.board h2{font-size:15px}
+.row8{display:grid;grid-template-columns:20px 34px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.row8:last-child{border-bottom:0}
+.row8 .pos{color:var(--muted);font-weight:700}
+.row8 b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.row8 small{display:block;color:var(--muted);font-size:12px}
+.row8 .n{font:700 17px var(--display);text-align:right}
+.row8.you{background:#232f20;border-radius:8px;padding:7px 6px;margin:0 -6px}
+.row8.you b{color:var(--lime)}
+.chip{flex:none;width:40px;height:24px;border-radius:6px;display:grid;place-items:center;font:800 12px var(--display);color:#141b17;background:var(--c)}
+.deck{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1.3fr) minmax(0,.8fr);gap:14px;margin-top:14px}
+.hud h3{font-size:12px;letter-spacing:.16em;color:var(--muted);font-weight:700;font-family:var(--body)}
+.big{font:800 40px/1 var(--display);letter-spacing:-.02em;margin:6px 0 4px}
+.big em{font-style:normal;font-size:15px;color:var(--muted);font-weight:600;margin-left:4px}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.modes button{border-radius:12px;border:1px solid var(--line);background:var(--panel2);padding:10px 8px;font-family:var(--display);font-weight:800;font-size:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.modes button small{font:600 12px var(--body);color:var(--muted)}
+.modes button[aria-pressed="true"]{border-color:var(--c);box-shadow:inset 0 0 0 2px var(--c);color:var(--c)}
+.pacerow{display:flex;align-items:center;gap:10px;margin-top:10px}
+.pacerow button{width:38px;height:38px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:20px;font-weight:700;flex:none}
+.pacerow .v{font:800 26px var(--display);min-width:92px;text-align:center}
+.pacerow .v em{font:600 12px var(--body);color:var(--muted);font-style:normal}
+.flowviz{display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:6px;margin:10px 0 6px}
+.node{display:grid;place-items:center;text-align:center;font-size:12px;color:var(--muted);gap:2px}
+.node b{font:800 17px var(--display);color:var(--text)}
+.node .dot{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:19px}
+.arrow{height:10px;border-radius:5px;background:#34403a;position:relative;overflow:hidden}
+.arrow i{position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--c) 0 8px,transparent 8px 16px);animation:flow 0.7s linear infinite;opacity:var(--o,1)}
+.arrow.rev i{animation-direction:reverse}
+@keyframes flow{to{transform:translateX(16px)}}
+.arrow i{left:-16px}
+.verdict{font-weight:600;border-radius:8px;padding:7px 10px;background:var(--panel2)}
+.meter{height:10px;border-radius:5px;background:#3a463c;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--lime);border-radius:5px}
+.progress{height:4px;background:#2a342d;border-radius:2px;margin-top:14px;position:relative}
+.progress i{display:block;height:100%;background:var(--lime);border-radius:2px;width:0}
+.progress span{position:absolute;top:-3px;width:2px;height:10px;background:var(--muted)}
+
+/* ---- Results ---- */
+.result-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:26px;align-items:center}
+.place{font:800 clamp(90px,14vw,160px)/.8 var(--display);letter-spacing:-.05em;color:var(--lime)}
+.place sup{font-size:.3em;letter-spacing:0;color:var(--muted);vertical-align:top;margin-left:6px}
+.whys{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:16px}
+.whycard{border-radius:14px;border:1px solid var(--line);background:var(--panel);padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-top:4px solid var(--c,var(--lime))}
+.whycard .k{font-size:12px;letter-spacing:.14em;font-weight:800;color:var(--c,var(--lime))}
+.whycard .v{font:800 30px/1 var(--display)}
+.whycard p{color:#c9d2c6;font-size:14px}
+.whycard button{align-self:flex-start;margin-top:auto}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+
+/* ---- Under the hood ---- */
+.hoodgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.advgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}
+.advgrid label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.advgrid label.check{justify-content:flex-start}
+.advgrid input[type=number]{width:74px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 6px;color:var(--text)}
+.check{display:flex;align-items:center;gap:8px;font-weight:600}
+.check input{accent-color:var(--lime);width:16px;height:16px}
+.bars{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 10px;align-items:center;font-size:13px}
+.chart{display:block;width:100%;height:230px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--c)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;letter-spacing:.12em;color:var(--muted)}
+.prose{max-width:76ch;color:#c9d2c6}
+.prose h3{font-size:15px;margin:14px 0 4px;color:var(--text)}
+.prose p{margin-bottom:8px}
+.spec{border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-width:0}
+.spec b{display:block;font-family:var(--display);font-size:19px;font-weight:700;white-space:nowrap}
+.spec span{font-size:12px;color:var(--muted)}
+.stats5{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+
+/* ---- SERRT ---- */
+.serrt{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:22px;align-items:start}
+.serrt img.photo{width:100%;border-radius:14px;display:block;border:1px solid var(--line)}
+.serrt h2{font-size:clamp(26px,3.4vw,38px);letter-spacing:-.02em;line-height:1.1;margin:8px 0 10px}
+.serrt p{color:#c9d2c6;max-width:64ch;margin-bottom:10px}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:14px;margin:8px 0 12px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:600}
+footer{color:var(--muted);font-size:12.5px;line-height:1.7;padding:26px 0 40px}
+footer b{color:var(--lime)}
+#toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);background:var(--lime);color:#172012;font-weight:700;border-radius:9px;padding:10px 14px;opacity:0;transition:.25s;pointer-events:none;z-index:5;max-width:90vw}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1000px){
+  .build,.serrt,.two,.hoodgrid{grid-template-columns:1fr}
+  .build{display:flex;flex-direction:column}
+  .lcol{display:contents}
+  .showroom{order:0;position:sticky;top:6px;z-index:3}
+  .showroom canvas{height:220px}
+  .build>div:not(.lcol){order:1}
+  .meters{order:2;margin-top:0} .scorebox{order:3;margin-top:0}
+  #race:not([hidden]){display:flex;flex-direction:column}
+  .racegrid{display:contents}
+  .racetop{order:0} .stage{order:1} .deck{order:2} .progress{order:3} .board{order:5;margin-top:14px}
+  .deck{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .deck .pace{grid-column:1/-1}
+  .board .rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
+}
+@media (max-width:620px){
+  .wrap{padding:0 14px}
+  header.top{justify-content:center}
+  .tabs a{padding:8px 10px;font-size:14px}
+  .showroom canvas{height:190px}
+  .showroom .dims{display:none}
+  .why{font-size:13.5px;padding:6px 10px}
+  #decision{position:fixed;z-index:10;overflow:auto;align-items:center}
+  .cards{grid-template-columns:1fr}
+  .cards.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card{flex-direction:row;flex-wrap:wrap;align-items:center}
+  .card .shape{width:70px;flex:none}
+  .card>div.t{flex:1;min-width:120px}
+  .cards.four .card{flex-direction:column;align-items:stretch}
+  .three{grid-template-columns:1fr;gap:0}
+  .result-head{grid-template-columns:1fr}
+  .facts{grid-template-columns:1fr}
+  .clock strong{font-size:30px}
+  .deck{grid-template-columns:1fr}
+  .board .rows{grid-template-columns:1fr}
+  .scorebox .num{font-size:44px}
+  .stage{aspect-ratio:1000/640}
+}
+@media (prefers-reduced-motion:reduce){#ticker div{animation-duration:.01s;opacity:1}.arrow i{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="brand"><picture><source srcset="assets/serrt-logo.webp" type="image/webp"><img src="assets/serrt-logo.png" width="483" height="244" alt="SERRT Solar Car Team, University of Puerto Rico Mayagüez"></picture><span>SERRT<small>SOLAR RACE LAB</small></span></div>
+  <nav class="tabs" aria-label="Sections">
+    <a href="#play" id="tab-play" aria-current="page">Play</a>
+    <a href="#hood" id="tab-hood">Under the hood</a>
+    <a href="#team" id="tab-team">Meet SERRT</a>
+  </nav>
+</header>
+
+<main>
+<!-- ================= PLAY ================= -->
+<div id="view-play">
+<section class="screen" id="garage">
+  <div class="build">
+    <div class="lcol">
+      <div class="showroom">
+        <canvas id="carCanvas" role="img" aria-label="Your solar car with airflow and sunlight" aria-describedby="carSummary"></canvas><p class="sr-only" id="carSummary"></p>
+        <span class="pill tag" id="batteryTag"></span><span class="dims" id="dimsLabel"></span>
+        <div class="why" id="why" aria-live="polite"></div>
+      </div>
+      <div class="meters">
+        <div class="m" style="--c:var(--yellow)"><span>Sun power</span><b id="mSun"></b><div class="bar"><i id="mSunBar"></i></div><em id="mSunD"></em></div>
+        <div class="m" style="--c:var(--sky)"><span>Slips through air</span><b id="mAero"></b><div class="bar"><i id="mAeroBar"></i></div><em id="mAeroD"></em></div>
+        <div class="m" style="--c:#c9a2e8"><span>Light on its wheels</span><b id="mMass"></b><div class="bar"><i id="mMassBar"></i></div><em id="mMassD"></em></div>
+        <div class="m"><span>Battery reserve</span><b id="mBatt"></b><div class="bar"><i id="mBattBar"></i></div><em id="mBattD"></em></div>
+      </div>
+      <div class="scorebox">
+        <div class="num" id="scoreLaps">0</div>
+        <div><strong id="scorePos">Forecast laps</strong><p id="scoreNote">Laps this car should bank in three days at its best steady pace.</p></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="steps" role="group" aria-label="Build steps">
+        <button type="button" data-step="0" aria-current="step"><small>STEP 1</small>Shape</button>
+        <button type="button" data-step="1"><small>STEP 2</small>Power</button>
+        <button type="button" data-step="2"><small>STEP 3</small>Race day</button>
+      </div>
+
+      <div class="panel pad" id="step0">
+        <div class="stephead"><h2>Pick a body.</h2><p>Start from Pitirre 3, the car SERRT is building, or try another shape. Every shape trades panel room against the air it has to push.</p></div>
+        <div class="cards" id="bodyCards"></div>
+        <div class="tune"><div class="three">
+          <div class="ctl"><div class="row"><label for="length">Length</label><output id="lengthValue"></output></div><input id="length" type="range" min="3" max="5.8" step="0.01"></div>
+          <div class="ctl"><div class="row"><label for="width">Width</label><output id="widthValue"></output></div><input id="width" type="range" min="1.3" max="2.3" step="0.01"></div>
+          <div class="ctl"><div class="row"><label for="height">Height</label><output id="heightValue"></output></div><input id="height" type="range" min="0.8" max="1.65" step="0.01"></div>
+        </div></div>
+      </div>
+
+      <div class="panel pad" id="step1" hidden>
+        <div class="stephead"><h2>Power it.</h2><p>Panels make the watts. The battery banks them for when the sky turns.</p></div>
+        <div class="ctl" style="margin-top:0"><div class="row"><label for="area">Solar panel</label><output id="areaValue"></output></div>
+          <input id="area" type="range" min="1.5" max="6" step="0.1"><div class="ends"><span>Less panel</span><span id="roofLimit"></span></div></div>
+        <h3 style="font-size:15px;margin:18px 0 8px">Battery pack</h3>
+        <div class="cards" id="battCards"></div>
+        <div class="ctl"><div class="row"><label for="battery">Fine tune</label><output id="batteryValue"></output></div><input id="battery" type="range" min="1" max="5.25" step="0.001"></div>
+      </div>
+
+      <div class="panel pad" id="step2" hidden>
+        <div class="stephead"><h2>Read the sky.</h2><p>Pick the weekend's weather, then how hard you plan to attack it.</p></div>
+        <div class="cards four" id="scenarios"></div>
+        <h3 style="font-size:15px;margin:18px 0 8px">Attack plan</h3>
+        <div class="cards" id="planCards"></div>
+      </div>
+
+      <div class="wiznav">
+        <button class="quiet" id="back">← Back</button>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label class="micro" for="raceLength" id="lenWrap" hidden>Race takes <select id="raceLength"><option value="60">about 1 min</option><option value="120" selected>about 2 min</option><option value="240">about 4 min</option></select></label>
+          <button class="primary big" id="next">Next: power →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="race" hidden>
+  <div class="racetop">
+    <div class="clock"><span id="rDay">DAY 1 / 3</span><strong id="rClock">07:00</strong><small id="rPhase">Solar charging</small></div>
+    <div class="wx"><span>Sun</span><div class="wxbar" aria-hidden="true"><i id="rWx"></i></div><span>Cloud</span><b id="rCloud">10%</b></div>
+    <div class="transport" role="group" aria-label="Playback">
+      <button id="pause" aria-label="Pause or resume">❚❚</button>
+      <button data-mult="1" aria-pressed="true">1×</button><button data-mult="2" aria-pressed="false">2×</button><button data-mult="4" aria-pressed="false">4×</button>
+      <button id="quit" class="quiet" style="margin-left:8px">Garage</button>
+    </div>
+  </div>
+  <div class="racegrid">
+    <div class="stage">
+      <canvas id="track" role="img" aria-label="Animated race on an illustrative circuit" aria-describedby="trackSummary"></canvas><p class="sr-only" id="trackSummary"></p>
+      <div class="caption">ILLUSTRATIVE LAYOUT · <span id="lapLabel">3.97 MI / LAP</span> · LAPS SPED UP</div>
+      <div id="ticker" role="log" aria-live="polite"></div>
+      <div id="banner"><div><b id="bannerTitle"></b><span id="bannerSub"></span></div></div>
+      <div id="decision" aria-live="polite" hidden><div class="dcard" role="group" aria-labelledby="dTitle" aria-describedby="dWhy"><div class="eyebrow" id="dEyebrow"></div><h2 id="dTitle"></h2><p id="dWhy"></p><div class="dopts" id="dOpts"></div><div class="dtimer" id="dTimer" hidden></div></div></div>
+    </div>
+    <aside class="panel pad board">
+      <div class="panel-head"><h2>Standings</h2><span class="pill">LIVE</span></div>
+      <div class="rows" id="board"></div>
+    </aside>
+  </div>
+  <div class="deck">
+    <div class="panel pad hud pace">
+      <h3>YOUR CALL</h3>
+      <div class="modes" role="group" aria-label="Pace mode">
+        <button data-mode="save" style="--c:var(--sky)" aria-pressed="false">SAVE<small id="modeSave"></small></button>
+        <button data-mode="cruise" style="--c:var(--lime)" aria-pressed="false">CRUISE<small id="modeCruise"></small></button>
+        <button data-mode="push" style="--c:var(--coral)" aria-pressed="false">PUSH<small id="modePush"></small></button>
+      </div>
+      <div class="pacerow"><button id="paceDown" aria-label="Slow down 1 mph">−</button><div class="v"><span id="paceValue">45</span> <em>mph</em></div><button id="paceUp" aria-label="Speed up 1 mph">+</button>
+        <input id="pace" type="range" min="15" max="65" step="1" aria-label="Target speed"></div>
+    </div>
+    <div class="panel pad hud">
+      <h3>WHERE THE POWER GOES</h3>
+      <div class="flowviz">
+        <div class="node"><div class="dot" style="background:#4a401f">☀</div><b id="hudSun">0</b>W in</div>
+        <div class="arrow" style="--c:var(--yellow)"><i id="arrSun"></i></div>
+        <div class="node"><div class="dot" style="background:#2c3a26">🚗</div><b id="hudDraw">0</b>W used</div>
+        <div class="arrow" id="arrBattWrap" style="--c:var(--lime)"><i id="arrBatt"></i></div>
+        <div class="node"><div class="dot" id="battDot" style="background:#2c3a26">🔋</div><b id="hudBatt">100%</b><span id="hudBattK"></span></div>
+      </div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+    <div class="panel pad hud"><h3>LAPS</h3><div class="big"><span id="hudLaps">0</span><em id="hudPos">P1</em></div><p class="micro" id="hudGap"></p></div>
+  </div>
+  <div class="progress" aria-hidden="true"><i id="progressFill"></i><span style="left:33.33%"></span><span style="left:66.66%"></span></div>
+</section>
+
+<section class="screen" id="results" hidden>
+  <div class="panel pad" style="padding:22px 24px">
+    <div class="result-head">
+      <div class="place"><span id="resPlace">1</span><sup id="resOf">of 8</sup></div>
+      <div><div class="eyebrow">Checkered flag · day 3</div><h1 id="resTitle" style="font-size:clamp(28px,3.6vw,42px);letter-spacing:-.02em;margin:6px 0"></h1><p id="resCopy" style="color:var(--muted)"></p>
+        <div class="actions" style="margin-top:14px"><button id="rebuild" class="primary">Rebuild the car</button><button id="again" class="quiet">Race again</button><a class="quiet" href="#hood">See the data</a></div></div>
+    </div>
+  </div>
+  <h2 style="font-size:20px;margin:22px 0 0">Why it went that way</h2>
+  <div class="whys" id="whys"></div>
+  <div class="panel pad" style="margin-top:18px"><div class="panel-head"><h2>Final standings</h2><span class="pill">SIMULATED RIVALS</span></div><div class="rows" id="resBoard" style="columns:2 280px;column-gap:28px"></div></div>
+</section>
+</div>
+
+<!-- ================= UNDER THE HOOD ================= -->
+<div id="view-hood" hidden>
+<section class="screen">
+  <div class="eyebrow">For the curious</div>
+  <h1 style="font-size:clamp(28px,3.6vw,42px);letter-spacing:-.02em;margin:6px 0 16px">Under the hood.</h1>
+  <div class="stats5" id="hoodSpecs" style="margin-bottom:18px"></div>
+  <div class="hoodgrid">
+    <div class="panel pad"><div class="panel-head"><h2 id="energyTitle">Three days of energy</h2><span class="pill" id="energyPill">FORECAST</span></div>
+      <div class="legend"><span><i style="--c:var(--lime)"></i>Battery %</span><span><i style="--c:var(--yellow)"></i>Sun kW</span><span><i style="--c:var(--coral)"></i>Draw kW</span><span><i style="--c:#7f8b86"></i>Cloud</span></div>
+      <canvas class="chart" id="energyChart" role="img" aria-label="Battery, sun power, power draw and cloud across three days" aria-describedby="energySummary"></canvas><p class="sr-only" id="energySummary"></p></div>
+    <div class="panel pad"><div class="panel-head"><h2>Laps against speed</h2><span class="pill">FORECAST</span></div>
+      <p class="micro">This car at every constant speed under the forecast.</p>
+      <canvas class="chart" id="speedChart" role="img" aria-label="Forecast laps for each constant speed from 15 to 65 mph" aria-describedby="speedSummary"></canvas><p class="sr-only" id="speedSummary"></p></div>
+    <div class="panel pad"><div class="panel-head"><h2>Pace plan</h2><label class="check"><input type="checkbox" id="sameSpeed"> Same speed all days</label></div>
+      <div class="three" id="dayControls"></div>
+      <p class="micro" style="margin-top:10px" id="coachCopy"></p><button id="applyBest" class="quiet" style="margin-top:8px">Use the coach's pace</button></div>
+    <div class="panel pad"><div class="panel-head"><h2>Engineering and track</h2>
+        <select id="ruleSet" aria-label="Design limits"><option value="r2026">2026 Rev B limits</option><option value="r2025">2025 Rev C limits</option><option value="free">Free design</option></select></div>
+      <div class="advgrid">
+        <label>Car mass, no driver <span><input id="chassis" type="number" min="120" max="450" step="1"> kg</span></label>
+        <label>Drag area, CdA <span><input id="cda" type="number" min="0.04" max="0.4" step="0.005"> m²</span></label>
+        <label>Rolling resistance <input id="rolling" type="number" min="0.002" max="0.02" step="0.0005"></label>
+        <label>Silicon cell efficiency <span><input id="cell" type="number" min="15" max="26" step="0.5"> %</span></label>
+        <label>Motor + controller <span><input id="motor" type="number" min="75" max="98" step="1"> %</span></label>
+        <label>Lap length <span><input id="lap" type="number" min="1" max="10" step="0.01"> mi</span></label>
+        <label>Climb per lap <span><input id="climb" type="number" min="0" max="250" step="5"> m</span></label>
+        <label>Slow corners / lap <input id="corners" type="number" min="0" max="20" step="1"></label>
+        <label>Driver swaps / day <input id="swaps" type="number" min="0" max="6" step="1"></label>
+        <label>Time per swap <span><input id="swapMinutes" type="number" min="1" max="20" step="1"> min</span></label>
+        <label class="check" style="color:var(--text)"><input id="tilt" type="checkbox"> Tilt panels while parked</label></div>
+      <button id="resetSetup" class="textbtn" style="margin-top:10px">Restore Pitirre 3</button></div>
+    <div class="panel pad"><div class="panel-head"><h2>Where the energy went</h2><span class="pill" id="barsPill">FORECAST</span></div><div class="bars" id="resBars"></div></div>
+    <div class="panel pad"><div class="panel-head"><h2>Day by day</h2><button id="copyRun" class="quiet" style="padding:6px 10px">Copy race data</button></div>
+      <div class="tablewrap"><table><thead><tr><th>DAY</th><th>CLOUD</th><th>LAPS</th><th>MILES</th><th>SUN IN</th><th>AT GREEN</th><th>AT FLAG</th></tr></thead><tbody id="dayTable"></tbody></table></div></div>
+  </div>
+  <div class="panel pad prose" style="margin-top:18px;max-width:none">
+    <div style="max-width:76ch">
+    <h2 style="font-size:20px;color:var(--text)">What powers the game</h2>
+    <p style="margin-top:8px">This is an educational strategy model. It is not measured El Pitirre 3 performance, not a race prediction and not a rules compliance check.</p>
+    <h3>Energy model</h3><p>Three 8-hour track days: day 1 from 10:00 to 18:00, days 2 and 3 from 09:00 to 17:00, with charging from 07:00 to 20:00. Sun position is for Gravois Mills, Missouri in mid-July. Panel power is area × irradiance × cell efficiency × 0.93. Driving demand is air drag, rolling resistance, corner braking, a hill-loss term and 25 W of electronics, divided by drivetrain efficiency. Battery charge and discharge are each 97% efficient. With a flat battery the car slows to what the sun can sustain; below 10 mph it parks and charges to 15%. Only whole laps before each day's flag count.</p>
+    <h3>Pitirre 3: documented and assumed</h3><p><b>Documented</b> in SERRT's FSGP 2027 Mechanical Preliminary Vehicle Design Report (11 November 2026): four wheels with a three-phase motor on the left-rear wheel; 198 in (5.03 m) long, 83.29 in (2.12 m) wide, 55.32 in (1.40 m) to the top of the canopy; 128 in (3.25 m) wheelbase; cockpit 113 in from the nose; 10.68 in tyre radius; 53.9% of static weight on the front axle. The report uses a deliberately overestimated weight of 1,000 lb including the driver for its load cases, and the game uses that figure as the car's mass, so the real car should be lighter. From the team's sponsor presentation: 288 Samsung 50S 21700 cells in 32s9p, 115.2 V nominal, 45 Ah, which gives <b>5.184 kWh</b> nominal, not measured usable energy.</p>
+    <p><b>Assumed</b>, because neither document gives them: drag area (0.14 m² at the real dimensions), panel area (set to the 6 m² reference limit), rolling resistance, cell efficiency and drivetrain efficiency. When you reshape the body the game scales drag with width, height and length and adds weight by rules of thumb: 180 Wh/kg for the pack, 3 kg/m² of panel. Panels fit on 78% of length × width, and a driver needs at least 0.8 m of height.</p>
+    <h3>Weather, rivals and track</h3><p>Race-day cloud wanders around the forecast and may bring one cloud bank or sun break a day. Decision cards project outcomes from the forecast, so the real sky can still surprise you. Rivals carry the names of schools on the <a href="https://electrek.co/2026/07/03/electrek-american-solar-challenge-2026-about-the-race-full-schedule-and-teams-competing/">2026 FSGP entry list</a>. Their cars, speeds and tactics are invented, and no real result or endorsement is implied. The <a href="https://www.americansolarchallenge.org/news/2026/10/electrek-formula-sun-grand-prix-2027-is-heading-to-the-ozarks-international-raceway/">organizer names Ozarks International Raceway</a> and a 3.97-mile course for FSGP 2027. The circuit drawn here is illustrative, and on-screen laps are sped up.</p>
+    <h3>Rules</h3><p>The 2026 Rev B and 2025 Rev C profiles carry array, battery and size limits from those documents. <a href="https://www.americansolarchallenge.org/wp-content/uploads/2026/05/ASC2026-RegsC.pdf">2026 Rev C supersedes Rev B</a>. Free design removes the caps. Reliability, traffic, penalties, tire changes and battery temperature are not modelled.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- ================= SERRT ================= -->
+<div id="view-team" hidden>
+<section class="screen serrt">
+  <picture><source srcset="assets/serrt-team.webp" type="image/webp"><img class="photo" src="assets/serrt-team.jpg" width="1100" height="732" loading="lazy" decoding="async" alt="SERRT team members at the University of Puerto Rico at Mayagüez"></picture>
+  <div>
+    <div class="eyebrow">UPR Mayagüez · Pitirre 3</div>
+    <h2>Built by students. Driven by purpose.</h2>
+    <p>SERRT, the Solar Engineering Research Racing Team, brings engineering, finance and marketing students together to build solar race cars and promote renewable energy across Puerto Rico. The story runs from Shining Star in 1989 to El Pitirre 2, sixth at FSGP 2019 with the Spirit of the Event and Fastest Egress awards, and now Pitirre 3, in design for FSGP 2027.</p>
+    <dl class="kv">
+      <dt>Car</dt><dd>Pitirre 3: four wheels, three-phase motor on the left-rear wheel</dd>
+      <dt>Size</dt><dd>5.03 m long · 2.12 m wide · 1.40 m at the canopy · 3.25 m wheelbase</dd>
+      <dt>Chassis</dt><dd>6061-T6 aluminium tube frame, about 170 lb, with a 4130 chromoly roll cage</dd>
+      <dt>Suspension</dt><dd>Double wishbone with pushrod air shocks, front and rear</dd>
+      <dt>Steering and brakes</dt><dd>Rack and pinion · four hydraulic discs on two circuits, plus a parking brake</dd>
+      <dt>Battery</dt><dd>288 Samsung 50S 21700 cells, 32s9p</dd>
+      <dt>Voltage</dt><dd>115.2 V nominal · 134.4 V maximum</dd>
+      <dt>Capacity</dt><dd>45 Ah · 5.184 kWh nominal</dd>
+      <dt>Structures</dt><dd>SolidWorks and ANSYS analysis, weld tensile tests, chassis build</dd>
+      <dt>Aerodynamics</dt><dd>ANSYS Fluent CFD, body optimisation, composite manufacturing</dd>
+      <dt>Telemetry</dt><dd>Sensor Hub, CAN and Raspberry Pi, RFD900x radio, pit display in development</dd>
+    </dl>
+    <div class="facts">
+      <div class="spec"><b>$132,082</b><span>total project budget</span></div>
+      <div class="spec"><b>$79,432</b><span>vehicle build</span></div>
+      <div class="spec"><b>$52,650</b><span>competition</span></div>
+    </div>
+    <p class="micro" style="margin-bottom:12px">Largest costs: solar arrays $33,640, shipping $30,000, aerodynamics $21,957, chassis $18,500. Figures are from the team's sponsor presentation, not a live balance.</p>
+    <div class="actions"><a class="primary" href="mailto:serrt.uprm@gmail.com?subject=Supporting%20El%20Pitirre%203">Talk sponsorship</a><a class="quiet" href="https://www.uprm.edu/solarcar/">uprm.edu/solarcar</a><span class="micro">serrt.uprm@gmail.com</span></div>
+    <p class="micro" style="margin-top:14px">This game was created by <b>Víctor Marrero</b>, Project Management Division Leader, SERRT.</p>
+  </div>
+</section>
+</div>
+</main>
+<footer><span class="by">Created by <b>Víctor Marrero</b>, Project Management Division Leader, SERRT</span><br>SERRT Solar Race Lab · an educational game, not a race prediction · rival cars and results are invented</footer>
+</div>
+<div id="toast" role="status"></div>
+<script src="physics.js"></script>
+<script src="logic.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/draw/car.js"></script>
+<script src="js/draw/track.js"></script>
+<script src="js/ui/garage.js"></script>
+<script src="js/ui/hood.js"></script>
+<script src="js/ui/tabs.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

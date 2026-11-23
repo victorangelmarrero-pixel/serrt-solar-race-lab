@@ -1,0 +1,18 @@
+# Dependencies and logs
+node_modules/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+
+# Working files: screenshots and scratch scripts stay out of the repo
+/*.png
+/screenshots/
+/shot*.py
+/playsave.py
+/tune*.cjs
