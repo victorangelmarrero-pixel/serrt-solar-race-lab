@@ -69,7 +69,7 @@ Every value with its source is in [`../data/pitirre3.json`](../data/pitirre3.jso
 **Documented**
 
 - Mechanical PVDR for FSGP 2027 (11 November 2026): length 5.03 m, width 2.12 m, height 1.40 m, wheelbase 3.25 m, tyre radius 10.68 in, cockpit 113 in from the nose, 1,000 lb design weight with driver, three-phase motor on the left-rear wheel. The report calls the 1,000 lb figure a deliberate overestimate, so the real car should be lighter than the game's.
-- SERRT companies presentation: 288 Samsung 50S cells in 32s9p, 115.2 V nominal, 45 Ah. That gives 5.184 kWh nominal, which is not measured usable energy.
+- Electrical PVDR Report, FSGP 2027 (11 November 2026): 288 Samsung 50S cells in 32s9p, 115.2 V nominal, 45 Ah. That gives 5.184 kWh nominal, which is not measured usable energy.
 
 **Assumed**
 
